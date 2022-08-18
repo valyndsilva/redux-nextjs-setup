@@ -1,27 +1,171 @@
-# Next.js + Tailwind CSS Example
+# Adding Redux to a Next.js App
 
-This example shows how to use [Tailwind CSS](https://tailwindcss.com/) [(v3.0)](https://tailwindcss.com/blog/tailwindcss-v3) with Next.js. It follows the steps outlined in the official [Tailwind docs](https://tailwindcss.com/docs/guides/nextjs).
+## Step 1: Create next.js app
 
-## Deploy your own
+npx create-next-app --example with-tailwindcss project-name
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-tailwindcss)
+## Step 2: Install Redux Toolkit and React-Redux
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss&project-name=with-tailwindcss&repository-name=with-tailwindcss)
+npm install @reduxjs/toolkit react-redux
 
-## How to use
+# Step 3: Create a Redux Store
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+In Next.js, you can create the store in the root folder of your application. Ex: store.ts
 
-```bash
-npx create-next-app --example with-tailwindcss with-tailwindcss-app
+```
+import { configureStore } from '@reduxjs/toolkit'
+
+export const store = configureStore({
+  reducer: {},
+})
+
+// Infer the `RootState` and `AppDispatch` types from the store itself
+export type RootState = ReturnType<typeof store.getState>
+// Inferred type: {posts: PostsState, comments: CommentsState, users: UsersState}
+export type AppDispatch = typeof store.dispatch
 ```
 
-```bash
-yarn create next-app --example with-tailwindcss with-tailwindcss-app
+# Step 4: Provide the Redux Store to React and Next.js
+
+Open pages/\_app.tsx:
+
+```
+import "../styles/globals.css";
+import type { AppProps } from "next/app";
+import { store } from "../store";
+import { Provider } from "react-redux";
+
+function MyApp({ Component, pageProps }: AppProps) {
+  return (
+    <Provider store={store}>
+      <Component {...pageProps} />
+    </Provider>
+  );
+}
+
+export default MyApp;
+
 ```
 
-```bash
-pnpm create next-app --example with-tailwindcss with-tailwindcss-app
+# Step 5: Create a Redux State Slice:
+
+In root folder create slices folder. in slices folder create counterSlice.tsx.
+
+```
+import { createSlice } from "@reduxjs/toolkit";
+import type { PayloadAction } from "@reduxjs/toolkit";
+import { RootState } from "../store";
+
+export interface CounterState {
+  value: number;
+}
+
+const initialState: CounterState = {
+  value: 0,
+};
+
+export const counterSlice = createSlice({
+  name: "counter",
+  initialState,
+  reducers: {
+    increment: (state) => {
+      // Redux Toolkit allows us to write "mutating" logic in reducers. It
+      // doesn't actually mutate the state because it uses the Immer library,
+      // which detects changes to a "draft state" and produces a brand new
+      // immutable state based off those changes
+      state.value += 1;
+    },
+    decrement: (state) => {
+      state.value -= 1;
+    },
+  },
+});
+
+// Action creators are generated for each case reducer function
+export const { increment, decrement } = counterSlice.actions;
+export const selectValue = (state: RootState) => state.counter.value;
+export default counterSlice.reducer;
+
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+# Step 6: Add Slice Reducers to the Store
+
+```
+import { configureStore } from "@reduxjs/toolkit";
+import counterReducer from "./slices/counterSlice";
+export const store = configureStore({
+  reducer: {
+    counter: counterReducer,
+  },
+});
+
+// Infer the `RootState` and `AppDispatch` types from the store itself
+export type RootState = ReturnType<typeof store.getState>;
+// Inferred type: {posts: PostsState, comments: CommentsState, users: UsersState}
+export type AppDispatch = typeof store.dispatch;
+```
+
+# Step 7: Use Redux State and Actions in React Components
+
+Now we can use the React-Redux hooks to let React components interact with the Redux store. We can read data from the store with useSelector, and dispatch actions using useDispatch. Create a slices/Counter.js file with a <Counter> component inside, then import that component into App.js and render it inside of <App> or edit the index.tsx file directly.
+
+In index.tsx
+
+```
+import type { NextPage } from "next";
+import Head from "next/head";
+import Image from "next/image";
+import { useSelector, useDispatch } from "react-redux";
+import { decrement, increment, selectValue } from "../slices/counterSlice";
+import { RootState } from "../store";
+
+const Home: NextPage = () => {
+  // const count = useSelector((state: RootState) => state.counter.value);
+  const count = useSelector(selectValue);
+  const dispatch = useDispatch();
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center py-2">
+      <Head>
+        <title>Create Next App</title>
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      <main className="flex w-full flex-1 flex-col items-center justify-center px-20 text-center">
+        <h1 className="text-3xl font-bold">The value of count is {count}</h1>
+        <button
+          className="w-full h-10 bg-green-400/50"
+          aria-label="Increment value"
+          onClick={() => dispatch(increment())}
+        >
+          Increment
+        </button>
+        <button
+          className="w-full h-10 bg-red-400/50"
+          aria-label="Decrement value"
+          onClick={() => dispatch(decrement())}
+        >
+          Decrement
+        </button>
+      </main>
+
+      <footer className="flex h-24 w-full items-center justify-center border-t">
+        <a
+          className="flex items-center justify-center gap-2"
+          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Powered by{" "}
+          <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
+        </a>
+      </footer>
+    </div>
+  );
+};
+
+export default Home;
+
+
+
+```
